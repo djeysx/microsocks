@@ -257,8 +257,8 @@ static void copyloop(int fd1, int fd2) {
 	};
 
     /* buffer outside loop to reuse it
-       increase to 2048 */
-	char buf[2048];
+       increase to 4096 */
+	char buf[4096];
 	while(1) {
 		/* inactive connections are reaped after 15 min to free resources.
 		   usually programs send keep-alive packets so this should only happen
