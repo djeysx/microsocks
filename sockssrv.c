@@ -256,6 +256,9 @@ static void copyloop(int fd1, int fd2) {
 		[1] = {.fd = fd2, .events = POLLIN},
 	};
 
+    /* buffer outside loop to reuse it
+       increase to 2048 */
+	char buf[2048];
 	while(1) {
 		/* inactive connections are reaped after 15 min to free resources.
 		   usually programs send keep-alive packets so this should only happen
@@ -271,7 +274,6 @@ static void copyloop(int fd1, int fd2) {
 		}
 		int infd = (fds[0].revents & POLLIN) ? fd1 : fd2;
 		int outfd = infd == fd2 ? fd1 : fd2;
-		char buf[1024];
 		ssize_t sent = 0, n = read(infd, buf, sizeof buf);
 		if(n <= 0) return;
 		while(sent < n) {

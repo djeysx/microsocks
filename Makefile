@@ -12,6 +12,8 @@ LIBS = -lpthread
 
 CFLAGS += -Wall -std=c99
 
+#CPPFLAGS += -DCONFIG_LOG=0
+
 INSTALL = ./install.sh
 
 -include config.mak
