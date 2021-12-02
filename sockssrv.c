@@ -257,13 +257,14 @@ static void copyloop(int fd1, int fd2) {
 	};
 
     /* buffer outside loop to reuse it
-       increase to 4096 */
-	char buf[4096];
+       set to 4k */
+	char buf[4*1024];
 	while(1) {
 		/* inactive connections are reaped after 15 min to free resources.
 		   usually programs send keep-alive packets so this should only happen
 		   when a connection is really unused. */
-		switch(poll(fds, 2, 60*15*1000)) {
+		int pollResult =poll(fds, 2, 60*15*1000);
+		switch(pollResult) {
 			case 0:
 				send_error(fd1, EC_TTL_EXPIRED);
 				return;
@@ -272,6 +273,7 @@ static void copyloop(int fd1, int fd2) {
 				else perror("poll");
 				return;
 		}
+		
 		int infd = (fds[0].revents & POLLIN) ? fd1 : fd2;
 		int outfd = infd == fd2 ? fd1 : fd2;
 		ssize_t sent = 0, n = read(infd, buf, sizeof buf);
@@ -280,6 +282,20 @@ static void copyloop(int fd1, int fd2) {
 			ssize_t m = write(outfd, buf+sent, n-sent);
 			if(m < 0) return;
 			sent += m;
+		}
+		
+		/* 2 fd have event.
+		   rare case but happens */
+		if(pollResult==2){
+			int infd =  fd2;
+			int outfd = fd1;
+			ssize_t sent = 0, n = read(infd, buf, sizeof buf);
+			if(n <= 0) return;
+			while(sent < n) {
+				ssize_t m = write(outfd, buf+sent, n-sent);
+				if(m < 0) return;
+				sent += m;
+			}
 		}
 	}
 }
