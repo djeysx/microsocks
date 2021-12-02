@@ -257,8 +257,8 @@ static void copyloop(int fd1, int fd2) {
 	};
 
     /* buffer outside loop to reuse it
-       set to 4k */
-	char buf[4*1024];
+       set to 3k */
+	char buf[3*1024];
 	while(1) {
 		/* inactive connections are reaped after 15 min to free resources.
 		   usually programs send keep-alive packets so this should only happen
@@ -286,13 +286,12 @@ static void copyloop(int fd1, int fd2) {
 		
 		/* 2 fd have event.
 		   rare case but happens */
-		if(pollResult==2){
-			int infd =  fd2;
-			int outfd = fd1;
-			ssize_t sent = 0, n = read(infd, buf, sizeof buf);
+		if(pollResult==2 && fds[1].revents & POLLIN){
+			//DEBUG printf("POLL 2\n");
+			ssize_t sent = 0, n = read(fd2, buf, sizeof buf);
 			if(n <= 0) return;
 			while(sent < n) {
-				ssize_t m = write(outfd, buf+sent, n-sent);
+				ssize_t m = write(fd1, buf+sent, n-sent);
 				if(m < 0) return;
 				sent += m;
 			}
