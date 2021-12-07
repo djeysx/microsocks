@@ -409,7 +409,7 @@ int main(int argc, char** argv) {
 	int ch;
 	const char *listenip = "0.0.0.0";
 	unsigned port = 1080;
-	while((ch = getopt(argc, argv, ":1b:i:p:u:P:")) != -1) {
+	while((ch = getopt(argc, argv, ":1b:i:p:u:P:B:")) != -1) {
 		switch(ch) {
 			case '1':
 				auth_ips = sblist_new(sizeof(union sockaddr_union), 8);
