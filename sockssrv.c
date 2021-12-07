@@ -62,6 +62,7 @@
 
 static const char* auth_user;
 static const char* auth_pass;
+static int loopBufferSize = 4096;
 static sblist* auth_ips;
 static pthread_rwlock_t auth_ips_lock = PTHREAD_RWLOCK_INITIALIZER;
 static const struct server* server;
@@ -256,9 +257,7 @@ static void copyloop(int fd1, int fd2) {
 		[1] = {.fd = fd2, .events = POLLIN},
 	};
 
-    /* buffer outside loop to reuse it
-       set to 3k */
-	char buf[3*1024];
+	char buf[loopBufferSize];
 	while(1) {
 		/* inactive connections are reaped after 15 min to free resources.
 		   usually programs send keep-alive packets so this should only happen
@@ -386,7 +385,7 @@ static int usage(void) {
 	dprintf(2,
 		"MicroSocks SOCKS5 Server\n"
 		"------------------------\n"
-		"usage: microsocks -1 -i listenip -p port -u user -P password -b bindaddr\n"
+		"usage: microsocks -1 -i listenip -p port -u user -P password -b bindaddr -B bufferSize\n"
 		"all arguments are optional.\n"
 		"by default listenip is 0.0.0.0 and port 1080.\n\n"
 		"option -b specifies which ip outgoing connections are bound to\n"
@@ -432,6 +431,9 @@ int main(int argc, char** argv) {
 			case 'p':
 				port = atoi(optarg);
 				break;
+			case 'B':
+				loopBufferSize = atoi(optarg);
+				break;
 			case ':':
 				dprintf(2, "error: option -%c requires an operand\n", optopt);
 				/* fall through */
@@ -445,6 +447,10 @@ int main(int argc, char** argv) {
 	}
 	if(auth_ips && !auth_pass) {
 		dprintf(2, "error: auth-once option must be used together with user/pass\n");
+		return 1;
+	}
+	if(loopBufferSize < 1){
+		dprintf(2,"error: bufferSize must be >0\n");
 		return 1;
 	}
 	signal(SIGPIPE, SIG_IGN);
