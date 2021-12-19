@@ -55,7 +55,7 @@ int server_setup(struct server *server, const char* listenip, unsigned short por
 	}
 	freeaddrinfo(ainfo);
 	if(listenfd < 0) return -2;
-	if(listen(listenfd, SOMAXCONN) < 0) {
+	if(listen(listenfd, LISTEN_QUEUE_LENGTH) < 0) {
 		close(listenfd);
 		return -3;
 	}

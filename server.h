@@ -29,6 +29,8 @@ union sockaddr_union {
 	( SOCKADDR_UNION_AF(PTR) == AF_INET  ) ? (PTR)->v4.sin_port  : ( \
 	( SOCKADDR_UNION_AF(PTR) == AF_INET6 ) ? (PTR)->v6.sin6_port : 0 ) )
 
+#define LISTEN_QUEUE_LENGTH 16
+
 struct client {
 	union sockaddr_union addr;
 	int fd;
