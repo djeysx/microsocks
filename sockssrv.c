@@ -138,6 +138,7 @@ static int connect_socks_target(unsigned char* buf, size_t n, struct client* cli
 		break;
 	case 3: /* dns name */
 		l = buf[4];
+		if (l >= sizeof namebuf) return -EC_GENERAL_FAILURE;
 		minlen = 4 + 2 + l + 1;
 		if (n < 4 + 2 + l + 1) return -EC_GENERAL_FAILURE;
 		memcpy(namebuf, buf + 4 + 1, l);
@@ -307,8 +308,10 @@ static enum errorcode check_credentials(unsigned char* buf, size_t n) {
 	if (buf[0] != 1) return EC_GENERAL_FAILURE;
 	unsigned ulen, plen;
 	ulen = buf[1];
+	if (ulen >= 256) return EC_GENERAL_FAILURE;
 	if (n < 2 + ulen + 2) return EC_GENERAL_FAILURE;
 	plen = buf[2 + ulen];
+	if (plen >= 256) return EC_GENERAL_FAILURE;
 	if (n < 2 + ulen + 1 + plen) return EC_GENERAL_FAILURE;
 	char user[256], pass[256];
 	memcpy(user, buf + 2, ulen);
@@ -457,6 +460,10 @@ int main(int argc, char** argv) {
 		dprintf(2, "error: bufferSize must be >0\n");
 		return 1;
 	}
+	if (loopBufferSize > 65536) {
+		dprintf(2, "error: bufferSize must be <= 65536 to avoid stack overflow\n");
+		return 1;
+	}
 	signal(SIGPIPE, SIG_IGN);
 	struct server s;
 	sblist* threads = sblist_new(sizeof(struct thread*), 8);
@@ -495,8 +502,14 @@ int main(int argc, char** argv) {
 		// 	a = &attr;
 		// 	pthread_attr_setstacksize(a, THREAD_STACK_SIZE);
 		// }
-		if (pthread_create(&curr->pt, &threadAttr, clientthread, curr) != 0)
+		if (pthread_create(&curr->pt, &threadAttr, clientthread, curr) != 0) {
 			dolog("pthread_create failed. OOM?\n");
+			sblist_delete(threads, sblist_getsize(threads) - 1);
+			close(curr->client.fd);
+			free(curr);
+			usleep(FAILURE_TIMEOUT);
+			continue;
+		}
 		// if(a) pthread_attr_destroy(&attr);
 	}
 }
