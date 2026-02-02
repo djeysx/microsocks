@@ -31,6 +31,7 @@
 #include <signal.h>
 #include <poll.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include <errno.h>
 #include <limits.h>
 #include "server.h"
@@ -182,6 +183,7 @@ static int connect_socks_target(unsigned char* buf, size_t n, struct client* cli
 		goto eval_errno;
 
 	freeaddrinfo(remote);
+	{ int one = 1; setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one)); }
 	if (CONFIG_LOG) {
 		char clientname[256];
 		af = SOCKADDR_UNION_AF(&client->addr);
@@ -325,6 +327,7 @@ static enum errorcode check_credentials(unsigned char* buf, size_t n) {
 static void* clientthread(void* data) {
 	struct thread* t = data;
 	t->state = SS_1_CONNECTED;
+	{ int one = 1; setsockopt(t->client.fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one)); }
 	unsigned char buf[1024];
 	ssize_t n;
 	int ret;
@@ -402,6 +405,8 @@ static int usage(void) {
 		"this is handy for programs like firefox that don't support\n"
 		"user/pass auth. for it to work you'd basically make one connection\n"
 		"with another program that supports it, and then you can use firefox too.\n"
+		"option -B bufferSize (default 4096, max 65536): larger values reduce\n"
+		"syscalls in the data path and can improve throughput (e.g. -B 65536).\n"
 	);
 	return 1;
 }
@@ -476,8 +481,11 @@ int main(int argc, char** argv) {
 		pthread_attr_setstacksize(&threadAttr, THREAD_STACK_SIZE);
 	server = &s;
 
+	unsigned accept_count = 0;
 	while (1) {
-		collect(threads);
+		/* collect every 4 accepts to reduce O(n) scan; done threads are reaped promptly */
+		if ((++accept_count & 3) == 0)
+			collect(threads);
 		struct client c;
 		struct thread* curr = malloc(sizeof(struct thread));
 		if (!curr) goto oom;

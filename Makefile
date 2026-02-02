@@ -10,7 +10,9 @@ OBJS = $(SRCS:.c=.o)
 
 LIBS = -lpthread
 
-CFLAGS += -Wall -std=c99 -O2
+# MARCH: -march=native par défaut (optimisé pour le CPU local). make generic = binaire portable.
+MARCH ?= -march=native
+CFLAGS += -Wall -std=c99 -O2 $(MARCH)
 
 #CPPFLAGS += -DCONFIG_LOG=0
 
@@ -19,6 +21,12 @@ INSTALL = ./install.sh
 -include config.mak
 
 all: $(PROG)
+
+generic: clean
+	$(MAKE) MARCH= all
+
+native: clean
+	$(MAKE) MARCH=-march=native all
 
 install: $(PROG)
 	$(INSTALL) -D -m 755 $(PROG) $(DESTDIR)$(bindir)/$(PROG)
@@ -32,6 +40,7 @@ clean:
 
 $(PROG): $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
+	strip $@
 
-.PHONY: all clean install
+.PHONY: all clean install generic native
 
